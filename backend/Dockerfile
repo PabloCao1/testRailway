@@ -26,7 +26,7 @@ COPY . .
 RUN chmod +x entrypoint.sh
 
 # Expose port (documentary)
-EXPOSE 8000
+EXPOSE 8080
 
 # Entrypoint script handles migrations
 ENTRYPOINT ["/app/entrypoint.sh"]
