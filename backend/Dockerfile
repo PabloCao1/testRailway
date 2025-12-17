@@ -25,8 +25,5 @@ COPY . .
 # Make entrypoint executable
 RUN chmod +x entrypoint.sh
 
-# Entrypoint script handles migrations
-ENTRYPOINT ["/app/entrypoint.sh"]
-
-# Default command: Use Railway's PORT environment variable with proper configuration
-CMD gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --access-logfile - --error-logfile -
+# Run entrypoint and start server
+CMD ["/app/entrypoint.sh"]
