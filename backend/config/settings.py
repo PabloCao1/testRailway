@@ -16,12 +16,27 @@ if 'DATABASE_URL' in os.environ:
     print(f"DATABASE_URL value starts with: {os.environ['DATABASE_URL'][:10]}...")
 else:
     print("DATABASE_URL is MISSING")
+print(f"PORT: {os.environ.get('PORT', 'NOT SET')}")
+print(f"DEBUG: {DEBUG}")
+print(f"ALLOWED_HOSTS: {os.environ.get('RAILWAY_PUBLIC_DOMAIN', 'localhost')}")
 print("----------------------")
 
 # ... (imports)
 
-ALLOWED_HOSTS = ['*']
-CSRF_TRUSTED_ORIGINS = ['https://*.railway.app']
+# Railway configuration
+RAILWAY_DOMAIN = os.environ.get('RAILWAY_PUBLIC_DOMAIN')
+ALLOWED_HOSTS = ['*']  # Permissive for Railway
+if RAILWAY_DOMAIN:
+    ALLOWED_HOSTS.append(RAILWAY_DOMAIN)
+    
+CSRF_TRUSTED_ORIGINS = [
+    'https://*.railway.app',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000'
+]
+if RAILWAY_DOMAIN:
+    CSRF_TRUSTED_ORIGINS.append(f'https://{RAILWAY_DOMAIN}')
+    CSRF_TRUSTED_ORIGINS.append(f'http://{RAILWAY_DOMAIN}')
 
 INSTALLED_APPS = [
     'django.contrib.admin',

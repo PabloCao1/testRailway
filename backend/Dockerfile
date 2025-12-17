@@ -25,11 +25,8 @@ COPY . .
 # Make entrypoint executable
 RUN chmod +x entrypoint.sh
 
-# Expose port (documentary)
-EXPOSE 8080
-
 # Entrypoint script handles migrations
 ENTRYPOINT ["/app/entrypoint.sh"]
 
-# Default command: Always run Gunicorn on port 8080 for consistency
-CMD gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8080}
+# Default command: Use Railway's PORT environment variable with proper configuration
+CMD gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --access-logfile - --error-logfile -
