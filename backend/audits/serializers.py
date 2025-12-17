@@ -26,13 +26,29 @@ class AuditSerializer(serializers.ModelSerializer):
     items = AuditItemSerializer(many=True, required=False)
     photos = AuditPhotoSerializer(many=True, read_only=True)
     establishment_name = serializers.CharField(source='establishment.name', read_only=True)
+    establishment_id = serializers.CharField(required=False, allow_null=True)
 
     class Meta:
         model = Audit
         fields = '__all__'
+        extra_kwargs = {
+            'score': {'required': False, 'allow_null': True},
+            'observations': {'required': False, 'allow_null': True},
+            'auditor': {'required': False, 'allow_null': True},
+            'establishment': {'required': False, 'allow_null': True},
+        }
 
     def create(self, validated_data):
         items_data = validated_data.pop('items', [])
+        establishment_id = validated_data.pop('establishment_id', None)
+        
+        # Set default auditor if not provided
+        if 'auditor' not in validated_data or validated_data['auditor'] is None:
+            validated_data['auditor'] = self.context['request'].user if 'request' in self.context else None
+        
+        # Handle establishment_id as string (ignore for now)
+        validated_data.pop('establishment', None)
+        
         audit = Audit.objects.create(**validated_data)
         for item_data in items_data:
             AuditItem.objects.create(audit=audit, **item_data)

@@ -24,8 +24,8 @@ class Audit(models.Model):
     establishment = models.ForeignKey(Establishment, on_delete=models.PROTECT, null=True, blank=True)
     date = models.DateTimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='DRAFT')
-    score = models.IntegerField(default=0)
-    observations = models.TextField(blank=True)
+    score = models.IntegerField(null=True, blank=True, default=0)
+    observations = models.TextField(null=True, blank=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

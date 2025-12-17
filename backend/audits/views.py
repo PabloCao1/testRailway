@@ -42,7 +42,7 @@ class SyncPushView(views.APIView):
                     existing_audit = Audit.objects.filter(id=audit_id).first()
                     
                     if not existing_audit:
-                        audit_serializer = AuditSerializer(data=audit_data)
+                        audit_serializer = AuditSerializer(data=audit_data, context={'request': request})
                         if audit_serializer.is_valid():
                             audit_serializer.save()
                             synced_ids.append(audit_id)
