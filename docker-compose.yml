@@ -20,7 +20,7 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     volumes:
       - ./backend:/app
     ports:
