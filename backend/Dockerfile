@@ -31,5 +31,5 @@ EXPOSE 8000
 # Entrypoint script handles migrations
 ENTRYPOINT ["/app/entrypoint.sh"]
 
-# Default command: If PORT env var is set (Railway), run Gunicorn. Otherwise run dev server.
-CMD sh -c "if [ -n '$PORT' ]; then gunicorn config.wsgi --bind 0.0.0.0:$PORT; else python manage.py runserver 0.0.0.0:8000; fi"
+# Default command: Always run Gunicorn on port 8000 for consistency
+CMD ["gunicorn", "config.wsgi", "--bind", "0.0.0.0:8000"]
