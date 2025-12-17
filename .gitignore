@@ -1,0 +1,35 @@
+# Python / Django
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+env/
+venv/
+*.sqlite3
+db_data/
+media/
+staticfiles/
+
+# Node / Javascript
+node_modules/
+npm-debug.log
+yarn-error.log
+.DS_Store
+
+# React / Vite
+dist/
+dist-ssr/
+*.local
+
+# Expo / React Native
+.expo/
+web-build/
+*.jks
+*.keystore
+android/
+ios/
+# Note: We usually keep android/ios folders in RN if we ejected, but for Expo managed workflow we often ignore them unless we prebuild. 
+# Since this is Expo managed, we can ignore them to keep repo light, OR keep them if prebuild was run. 
+# Given the user ran 'npx expo install', it's likely managed. Let's ignore generated native folders if they exist to avoid clutter unless intended.
+# However, standard expo gitignore often keeps them if you run prebuild. Let's stick to standard.

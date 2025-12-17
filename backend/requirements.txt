@@ -1,0 +1,9 @@
+Django>=5.0
+djangorestframework
+djangorestframework-simplejwt
+mysqlclient
+django-cors-headers
+Pillow
+gunicorn
+dj-database-url
+whitenoise
