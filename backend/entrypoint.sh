@@ -3,7 +3,10 @@
 echo "--> Collecting static files..."
 python manage.py collectstatic --noinput
 
-echo "--> Creating migrations..."
+echo "--> Resetting migrations..."
+rm -f audits/migrations/0*.py
+
+echo "--> Creating fresh migrations..."
 python manage.py makemigrations audits --noinput
 
 echo "--> Applying migrations..."

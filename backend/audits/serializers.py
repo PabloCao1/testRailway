@@ -46,6 +46,12 @@ class AuditSerializer(serializers.ModelSerializer):
         if 'auditor' not in validated_data or validated_data['auditor'] is None:
             validated_data['auditor'] = self.context['request'].user if 'request' in self.context else None
         
+        # Handle None values
+        if validated_data.get('score') is None:
+            validated_data['score'] = 0
+        if validated_data.get('observations') is None:
+            validated_data['observations'] = ''
+        
         # Handle establishment_id as string (ignore for now)
         validated_data.pop('establishment', None)
         
