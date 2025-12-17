@@ -32,4 +32,4 @@ EXPOSE 8080
 ENTRYPOINT ["/app/entrypoint.sh"]
 
 # Default command: Always run Gunicorn on port 8080 for consistency
-CMD ["gunicorn", "config.wsgi", "--bind", "0.0.0.0:8080"]
+CMD gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8080}
