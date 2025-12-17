@@ -10,6 +10,14 @@ DEBUG = os.environ.get('DEBUG', '0') == '1'
 
 import dj_database_url
 
+print("--- DEBUG SETTINGS ---")
+print(f"DATABASE_URL present: {'DATABASE_URL' in os.environ}")
+if 'DATABASE_URL' in os.environ:
+    print(f"DATABASE_URL value starts with: {os.environ['DATABASE_URL'][:10]}...")
+else:
+    print("DATABASE_URL is MISSING")
+print("----------------------")
+
 # ... (imports)
 
 ALLOWED_HOSTS = ['*']
