@@ -20,48 +20,46 @@ class SyncPushView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        serializer = SyncPushSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        audits_data = serializer.validated_data.get('audits', [])
-        synced_ids = []
+        print(f"🔄 Sync Push Request from user: {request.user}")
+        print(f"📦 Request data: {request.data}")
         
         try:
+            serializer = SyncPushSerializer(data=request.data)
+            if not serializer.is_valid():
+                print(f"❌ Serializer validation failed: {serializer.errors}")
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            audits_data = serializer.validated_data.get('audits', [])
+            print(f"📋 Processing {len(audits_data)} audits")
+            synced_ids = []
+            
             with transaction.atomic():
                 for audit_data in audits_data:
                     audit_id = audit_data.get('id')
-                    client_updated_at = audit_data.get('updated_at')
+                    print(f"🔍 Processing audit: {audit_id}")
                     
-                    # Check if exists
+                    # Simple create strategy for now
                     existing_audit = Audit.objects.filter(id=audit_id).first()
                     
-                    if existing_audit:
-                        # Conflict Resolution: Server Wins if server is newer
-                        # But we want to allow client update if client is newer
-                        if client_updated_at > existing_audit.updated_at:
-                            # Update logic
-                            audit_serializer = AuditSerializer(existing_audit, data=audit_data, partial=True)
-                            if audit_serializer.is_valid():
-                                audit_serializer.save()
-                                synced_ids.append(audit_id)
-                        else:
-                            # Server is newer or equal, ignore client update
-                            # But we tell client it's synced so it stops sending it
-                            synced_ids.append(audit_id)
-                    else:
-                        # Create new
-                        # We need to ensure the serializer creates it with the provided UUID
+                    if not existing_audit:
                         audit_serializer = AuditSerializer(data=audit_data)
                         if audit_serializer.is_valid():
                             audit_serializer.save()
                             synced_ids.append(audit_id)
+                            print(f"✅ Created audit: {audit_id}")
                         else:
-                            print(f"Error syncing audit {audit_id}: {audit_serializer.errors}")
+                            print(f"❌ Audit creation failed: {audit_serializer.errors}")
+                    else:
+                        synced_ids.append(audit_id)
+                        print(f"⚠️ Audit already exists: {audit_id}")
 
+            print(f"✅ Sync completed. Synced IDs: {synced_ids}")
             return Response({'synced_ids': synced_ids}, status=status.HTTP_200_OK)
         
         except Exception as e:
+            print(f"💥 Sync Push Error: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class SyncPullView(views.APIView):

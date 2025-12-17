@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: 'http://localhost:8000/api',
+    baseURL: 'https://testrailway-production-a18c.up.railway.app/api',
     headers: {
         'Content-Type': 'application/json',
     },
@@ -26,7 +26,7 @@ api.interceptors.response.use(
             originalRequest._retry = true;
             try {
                 const refreshToken = localStorage.getItem('refresh_token');
-                const response = await axios.post('http://localhost:8000/api/token/refresh/', {
+                const response = await axios.post('https://testrailway-production-a18c.up.railway.app/api/token/refresh/', {
                     refresh: refreshToken
                 });
                 const { access } = response.data;

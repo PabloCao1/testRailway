@@ -54,3 +54,19 @@ export const getDB = () => {
     }
     return db;
 };
+
+export const clearAllData = async () => {
+    try {
+        const database = getDB();
+        await database.execAsync(`
+            DELETE FROM audit_items;
+            DELETE FROM audits;
+            DELETE FROM users;
+        `);
+        console.log("✅ All local data cleared");
+        return true;
+    } catch (error) {
+        console.error("❌ Error clearing data:", error);
+        return false;
+    }
+};

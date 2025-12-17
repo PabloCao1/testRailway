@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { styled } from 'nativewind';
 import { useAuth } from '../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import { clearAllData } from '../database/db';
 
 const StyledView = styled(View);
 const StyledText = styled(Text);
@@ -82,6 +83,18 @@ export default function LoginScreen() {
                         ) : (
                             <StyledText className="text-white font-bold text-lg">Iniciar Sesión</StyledText>
                         )}
+                    </StyledTouchableOpacity>
+
+                    <StyledTouchableOpacity
+                        onPress={async () => {
+                            const success = await clearAllData();
+                            if (success) {
+                                setError('Datos locales borrados ✅');
+                            }
+                        }}
+                        className="mt-3 py-2 rounded-xl items-center bg-red-500"
+                    >
+                        <StyledText className="text-white font-medium">🗑️ Borrar Datos Locales</StyledText>
                     </StyledTouchableOpacity>
                 </StyledView>
             </StyledView>

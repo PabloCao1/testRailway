@@ -3,7 +3,7 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { getDB } from '../database/db';
 
-const API_URL = 'http://192.168.1.45:8000/api'; // CHANGE TO YOUR LOCAL IP
+const API_URL = 'https://testrailway-production-a18c.up.railway.app/api'; // Railway deployment
 
 export const syncData = async () => {
     const networkState = await Network.getNetworkStateAsync();

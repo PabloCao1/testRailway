@@ -4,8 +4,8 @@ import axios from 'axios';
 
 const AuthContext = createContext(null);
 
-// CHANGE THIS TO YOUR LOCAL IP
-const API_URL = 'http://192.168.1.45:8000/api';
+// Railway deployment URL
+const API_URL = 'https://testrailway-production-a18c.up.railway.app/api';
 
 export const AuthProvider = ({ children }) => {
     const [userToken, setUserToken] = useState(null);
