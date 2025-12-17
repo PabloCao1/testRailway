@@ -31,5 +31,5 @@ EXPOSE 8080
 # Entrypoint script handles migrations
 ENTRYPOINT ["/app/entrypoint.sh"]
 
-# Default command: Always run Gunicorn on port 8000 for consistency
-CMD ["gunicorn", "config.wsgi", "--bind", "0.0.0.0:8000"]
+# Default command: Always run Gunicorn on port 8080 for consistency
+CMD ["gunicorn", "config.wsgi", "--bind", "0.0.0.0:8080"]
