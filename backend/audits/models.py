@@ -20,8 +20,8 @@ class Audit(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=True) # Editable=True because client generates it
-    auditor = models.ForeignKey(User, on_delete=models.PROTECT)
-    establishment = models.ForeignKey(Establishment, on_delete=models.PROTECT)
+    auditor = models.ForeignKey(User, on_delete=models.PROTECT, null=True, blank=True)
+    establishment = models.ForeignKey(Establishment, on_delete=models.PROTECT, null=True, blank=True)
     date = models.DateTimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='DRAFT')
     score = models.IntegerField(default=0)
