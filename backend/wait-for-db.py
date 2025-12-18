@@ -5,7 +5,7 @@ import MySQLdb
 import sys
 
 def wait_for_db():
-    db_host = os.getenv('DB_HOST', 'localhost')
+    db_host = os.getenv('DB_HOST', 'db')
     db_port = int(os.getenv('DB_PORT', '3306'))
     db_user = os.getenv('DB_USER', 'myapp_user')
     db_password = os.getenv('DB_PASSWORD', 'myapp_password')
