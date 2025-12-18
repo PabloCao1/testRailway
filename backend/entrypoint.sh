@@ -5,6 +5,12 @@ echo "=========================================="
 echo "INICIANDO SISTEMA DE AUDITORIA"
 echo "=========================================="
 
+export PYTHONPATH="/app:/app/src:${PYTHONPATH}"
+
+echo ""
+echo "PASO 0: Verificando conexion a base de datos..."
+python wait-for-db.py
+
 echo ""
 echo "PASO 1: Recolectando archivos estáticos..."
 python manage.py collectstatic --noinput || true
