@@ -7,29 +7,8 @@ echo "=========================================="
 
 export PYTHONPATH="/app:/app/src:${PYTHONPATH}"
 
-if [ -n "$MYSQL_URL" ]; then
-  eval "$(python - <<'EOF'
-import os
-from urllib.parse import urlparse
-
-url = os.environ.get("MYSQL_URL")
-parsed = urlparse(url) if url else None
-if parsed:
-    host = parsed.hostname or ""
-    port = parsed.port or 3306
-    user = parsed.username or ""
-    password = parsed.password or ""
-    name = (parsed.path or "").lstrip("/") or ""
-    print(f'DB_HOST="{host}"')
-    print(f'DB_PORT="{port}"')
-    if user:
-        print(f'DB_USER="{user}"')
-    if password:
-        print(f'DB_PASSWORD="{password}"')
-    if name:
-        print(f'DB_NAME="{name}"')
-EOF
-)"
+if [ -n "$MYSQL_URL" ] && [ -z "$DATABASE_URL" ]; then
+  export DATABASE_URL="$MYSQL_URL"
 fi
 
 echo ""

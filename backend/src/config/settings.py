@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+import dj_database_url
 
 load_dotenv()
 
@@ -59,22 +60,32 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('DB_NAME', 'myapp_db'),
-        'USER': os.getenv('DB_USER', 'myapp_user'),
-        'PASSWORD': os.getenv('DB_PASSWORD', 'myapp_password'),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
-        'PORT': os.getenv('DB_PORT', '3306'),
-        'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-            'charset': 'utf8mb4',
-            'autocommit': True,
-        },
-        'CONN_MAX_AGE': 600,  # 10 minutos - Persistent connections
+database_url = os.getenv('DATABASE_URL') or os.getenv('MYSQL_URL')
+
+if database_url:
+    DATABASES = {
+        'default': dj_database_url.parse(
+            database_url,
+            conn_max_age=600,
+        )
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': os.getenv('DB_NAME', 'myapp_db'),
+            'USER': os.getenv('DB_USER', 'myapp_user'),
+            'PASSWORD': os.getenv('DB_PASSWORD', 'myapp_password'),
+            'HOST': os.getenv('DB_HOST', 'localhost'),
+            'PORT': os.getenv('DB_PORT', '3306'),
+            'OPTIONS': {
+                'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+                'charset': 'utf8mb4',
+                'autocommit': True,
+            },
+            'CONN_MAX_AGE': 600,  # 10 minutos - Persistent connections
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {
