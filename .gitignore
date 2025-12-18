@@ -33,6 +33,3 @@ ios/
 # Since this is Expo managed, we can ignore them to keep repo light, OR keep them if prebuild was run. 
 # Given the user ran 'npx expo install', it's likely managed. Let's ignore generated native folders if they exist to avoid clutter unless intended.
 # However, standard expo gitignore often keeps them if you run prebuild. Let's stick to standard.
-
-Auditoria/
-/Auditoria/
