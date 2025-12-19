@@ -51,6 +51,53 @@ class VisitaAuditoriaViewSet(viewsets.ModelViewSet):
             return VisitaAuditoriaListSerializer
         return VisitaAuditoriaSerializer
 
+    @action(detail=False, methods=['post'], url_path='sync')
+    def sync(self, request):
+        """
+        Sincronización masiva Offline-First.
+        Recibe un array de visitas con local_id.
+        """
+        data = request.data
+        if not isinstance(data, list):
+            return Response({"error": "Se esperaba una lista de registros"}, status=status.HTTP_400_BAD_REQUEST)
+
+        results = []
+        with transaction.atomic():
+            for entry in data:
+                local_id = entry.get('local_id')
+                server_id = entry.get('id')
+                client_updated_at = entry.get('updated_at')
+
+                try:
+                    if server_id:
+                        # Update existing
+                        instance = VisitaAuditoria.objects.get(id=server_id)
+                        # Basic Conflict Resolution: Last Write Wins (using updated_at)
+                        # In production, you might compare ISO strings or use a version counter
+                        instance_updated_at = instance.updated_at.isoformat()
+                        
+                        if client_updated_at and client_updated_at > instance_updated_at:
+                            serializer = VisitaAuditoriaSerializer(instance, data=entry, partial=True)
+                            if serializer.is_valid():
+                                instance = serializer.save()
+                                results.append({"local_id": local_id, "id": instance.id, "status": "updated"})
+                            else:
+                                results.append({"local_id": local_id, "error": serializer.errors, "status": "error"})
+                        else:
+                            results.append({"local_id": local_id, "id": instance.id, "status": "skipped_older"})
+                    else:
+                        # Create new
+                        serializer = VisitaAuditoriaSerializer(data=entry)
+                        if serializer.is_valid():
+                            instance = serializer.save()
+                            results.append({"local_id": local_id, "id": instance.id, "status": "created"})
+                        else:
+                            results.append({"local_id": local_id, "error": serializer.errors, "status": "error"})
+                except Exception as e:
+                    results.append({"local_id": local_id, "error": str(e), "status": "error"})
+
+        return Response(results, status=status.HTTP_200_OK)
+
 
 class PlatoObservadoViewSet(viewsets.ModelViewSet):
     queryset = PlatoObservado.objects.select_related('visita').prefetch_related('ingredientes__alimento').all()

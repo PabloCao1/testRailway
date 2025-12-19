@@ -9,9 +9,10 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native'
-import { Q } from '@nozbe/watermelondb'
-import { database } from '../database'
-import syncService from '../database/sync/syncService'
+import { getDB } from '../database/db'
+import syncService from '../services/syncService'
+import { Ionicons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 
 export const FormularioRelevamientoScreen = ({ route, navigation }: any) => {
   const { visitaId } = route.params
@@ -27,75 +28,62 @@ export const FormularioRelevamientoScreen = ({ route, navigation }: any) => {
   const loadFormData = async () => {
     try {
       setLoading(true)
-      const visita = await findVisitaRecord()
+      const db = getDB()
+
+      // Buscar visita en cache local
+      let visita: any = await db.getFirstAsync('SELECT * FROM visitas WHERE id = ? OR server_id = ?', [visitaId, visitaId])
+
       if (!visita) {
-        Alert.alert(
-          'Sin datos locales',
-          'No encontramos esta visita en el almacenamiento offline. Intenta sincronizar y vuelve a abrir el formulario.',
-          [{ text: 'Aceptar', onPress: () => navigation.goBack() }],
-        )
+        Alert.alert('Error', 'No se encontró la visita localmente. Asegúrate de haberla visto en la lista antes.')
+        navigation.goBack()
         return
       }
 
       setLocalVisitaId(visita.id)
-      setFormData(visita.formularioRespuestas || {})
+      const parsedFormData = visita.formulario_respuestas ? JSON.parse(visita.formulario_respuestas) : {}
+      setFormData(parsedFormData)
     } catch (error) {
       console.error('Error cargando formulario:', error)
-      Alert.alert('Error', 'No pudimos cargar la visita desde la base local.')
       navigation.goBack()
     } finally {
       setLoading(false)
     }
   }
 
-  const findVisitaRecord = async () => {
-    const collection = database.get('visitas')
-
-    if (typeof visitaId === 'string') {
-      try {
-        return await collection.find(visitaId)
-      } catch (error) {
-        // Si no existe con el ID local seguimos buscando por server_id
-      }
-    }
-
-    const numericId = Number(visitaId)
-    if (!Number.isNaN(numericId)) {
-      const existing = await collection.query(Q.where('server_id', numericId)).fetch()
-      if (existing.length > 0) {
-        return existing[0]
-      }
-    }
-
-    return null
-  }
-
-  const saveFormData = async () => {
-    if (!localVisitaId) {
-      Alert.alert('Sin visita local', 'No pudimos identificar la visita. Intenta sincronizar antes de guardar.')
-      return
-    }
-
+  /**
+   * ARQUITECTURA SENIOR: Registro Local -> Background Sync
+   */
+  const handleSaveFlow = async () => {
+    if (!localVisitaId) return
     setIsSaving(true)
+
     try {
-      await database.write(async () => {
-        const visita = await database.get('visitas').find(localVisitaId)
-        await visita.update((record: any) => {
-          record.formularioRespuestas = formData
-          record.formularioCompletado = true
-          record.synced = false
-        })
-      })
+      const db = getDB()
+      const formDataJson = JSON.stringify(formData)
+      const now = new Date().toISOString()
+
+      // 1. Persistencia Local Inmediata (SQLite)
+      // Usamos synced = 0 (pending_sync) y updated_at para resolución de conflictos
+      await db.runAsync(
+        'UPDATE visitas SET formulario_respuestas = ?, formulario_completado = 1, pending_sync = 1, updated_at = ? WHERE id = ?',
+        [formDataJson, now, localVisitaId]
+      )
+
+      console.log('💾 [Offline-First] Datos persistidos en SQLite local.')
 
       Alert.alert(
-        'Exito',
-        'Formulario guardado en el dispositivo. Se enviara automaticamente cuando vuelva la conexion.',
+        'Formulario Guardado',
+        'Se ha registrado localmente. La sincronización con el servidor se realizará en segundo plano.',
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
       )
-      navigation.goBack()
-      await syncService.syncIfNeeded()
+
+      // 2. Disparo de Sincronización Silenciosa
+      // No esperamos (await) para no bloquear el retorno a la pantalla anterior
+      syncService.syncIfNeeded()
+
     } catch (error) {
-      console.error('Error guardando formulario:', error)
-      Alert.alert('Error', 'No pudimos guardar el formulario en la base local.')
+      console.error('❌ Error en persistencia local:', error)
+      Alert.alert('Error', 'No se pudo guardar el formulario localmente.')
     } finally {
       setIsSaving(false)
     }
@@ -112,18 +100,23 @@ export const FormularioRelevamientoScreen = ({ route, navigation }: any) => {
     <View style={styles.field}>
       <Text style={styles.fieldLabel}>{label}</Text>
       <View style={styles.booleanButtons}>
-        <TouchableOpacity
-          style={[styles.booleanButton, formData[section]?.[field] === true && styles.booleanButtonActive]}
-          onPress={() => updateField(section, field, true)}
-        >
-          <Text style={styles.booleanButtonText}>Si</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.booleanButton, formData[section]?.[field] === false && styles.booleanButtonActive]}
-          onPress={() => updateField(section, field, false)}
-        >
-          <Text style={styles.booleanButtonText}>No</Text>
-        </TouchableOpacity>
+        {[
+          { label: 'Sí', val: true, color: '#10B981' },
+          { label: 'No', val: false, color: '#EF4444' }
+        ].map((opt) => (
+          <TouchableOpacity
+            key={opt.label}
+            style={[
+              styles.booleanButton,
+              formData[section]?.[field] === opt.val && { backgroundColor: opt.color, borderColor: opt.color }
+            ]}
+            onPress={() => updateField(section, field, opt.val)}
+          >
+            <Text style={[styles.booleanButtonText, formData[section]?.[field] === opt.val && { color: 'white' }]}>
+              {opt.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
     </View>
   )
@@ -136,117 +129,84 @@ export const FormularioRelevamientoScreen = ({ route, navigation }: any) => {
         value={formData[section]?.[field] || ''}
         onChangeText={(value) => updateField(section, field, value)}
         multiline
+        placeholder="Escribe aquí..."
       />
     </View>
   )
 
-  if (loading) {
-    return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color="#4F46E5" />
-        <Text style={styles.loadingText}>Cargando datos locales...</Text>
-      </View>
-    )
-  }
+  if (loading) return (
+    <View style={styles.loadingCenter}>
+      <ActivityIndicator size="large" color="#3B82F6" />
+    </View>
+  )
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>dY"< Formulario de Relevamiento</Text>
-      </View>
+    <View style={styles.container}>
+      <LinearGradient colors={['#3B82F6', '#2563EB']} style={styles.header}>
+        <Text style={styles.headerTitle}>Relevamiento</Text>
+        <Text style={styles.headerSubtitle}>Complete los datos de la auditoría</Text>
+      </LinearGradient>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>1. Prestacion del Servicio</Text>
-        {renderBooleanField('prestacion', 'servicio_funcionando', 'El servicio esta funcionando?')}
-        {renderTextField('prestacion', 'observaciones', 'Observaciones')}
-      </View>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="business" size={20} color="#3B82F6" />
+            <Text style={styles.sectionTitle}>1. Prestación del Servicio</Text>
+          </View>
+          {renderBooleanField('prestacion', 'servicio_funcionando', '¿El servicio está funcionando?')}
+          {renderTextField('prestacion', 'serv_obs', 'Observaciones generales')}
+        </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>2. Cantidad de Raciones</Text>
-        {renderTextField('raciones', 'cantidad_programada', 'Cantidad programada')}
-        {renderTextField('raciones', 'cantidad_servida', 'Cantidad servida')}
-      </View>
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="restaurant" size={20} color="#3B82F6" />
+            <Text style={styles.sectionTitle}>2. Cantidad de Raciones</Text>
+          </View>
+          {renderTextField('raciones', 'cant_prog', 'Cantidad programada')}
+          {renderTextField('raciones', 'cant_serv', 'Cantidad servida')}
+        </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>3. Control de Temperaturas</Text>
-        {renderBooleanField('temperaturas', 'control_realizado', 'Se realiza control de temperatura?')}
-        {renderTextField('temperaturas', 'temperatura_frio', 'Temperatura frio (C)')}
-        {renderTextField('temperaturas', 'temperatura_caliente', 'Temperatura caliente (C)')}
-      </View>
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="thermometer" size={20} color="#3B82F6" />
+            <Text style={styles.sectionTitle}>3. Temperaturas</Text>
+          </View>
+          {renderBooleanField('temperaturas', 'ctrl_temp', '¿Se realiza control?')}
+          {renderTextField('temperaturas', 'temp_frio', 'Temperatura Frío (°C)')}
+          {renderTextField('temperaturas', 'temp_caliente', 'Temperatura Caliente (°C)')}
+        </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>4. Personal</Text>
-        {renderTextField('personal', 'cantidad', 'Cantidad de personal')}
-        {renderBooleanField('personal', 'capacitacion', 'Personal capacitado?')}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>5. Habitos Higienicos</Text>
-        {renderBooleanField('higiene', 'lavado_manos', 'Se lavan las manos?')}
-        {renderBooleanField('higiene', 'uso_cofia', 'Usan cofia?')}
-        {renderBooleanField('higiene', 'uso_barbijo', 'Usan barbijo?')}
-      </View>
-
-      <View style={styles.actions}>
         <TouchableOpacity
-          style={[styles.saveButton, isSaving && styles.buttonDisabled]}
-          onPress={saveFormData}
+          style={[styles.saveBtn, isSaving && { opacity: 0.7 }]}
+          onPress={handleSaveFlow}
           disabled={isSaving}
         >
-          <Text style={styles.saveButtonText}>{isSaving ? 'Guardando...' : "dY'_ Guardar Formulario"}</Text>
+          <LinearGradient colors={['#10B981', '#059669']} style={styles.btnGradient}>
+            <Text style={styles.saveBtnText}>{isSaving ? 'GUARDANDO...' : 'FINALIZAR RELEVAMIENTO'}</Text>
+          </LinearGradient>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.cancelButtonText}>Cancelar</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F3F4F6' },
-  loadingContainer: { justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 12, color: '#374151' },
-  header: { backgroundColor: '#4F46E5', padding: 24 },
-  title: { fontSize: 24, fontWeight: 'bold', color: 'white', textAlign: 'center' },
-  section: {
-    backgroundColor: 'white',
-    margin: 16,
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16, color: '#111827' },
-  field: { marginBottom: 16 },
-  fieldLabel: { fontSize: 14, fontWeight: '600', marginBottom: 8, color: '#374151' },
+  container: { flex: 1, backgroundColor: '#F9FAFB' },
+  loadingCenter: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  header: { padding: 32, borderBottomLeftRadius: 30, borderBottomRightRadius: 30, alignItems: 'center' },
+  headerTitle: { fontSize: 24, fontWeight: 'bold', color: 'white' },
+  headerSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.8)', marginTop: 4 },
+  scrollContent: { padding: 20 },
+  section: { backgroundColor: 'white', borderRadius: 20, padding: 20, marginBottom: 20, elevation: 2 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 10 },
+  sectionTitle: { fontSize: 17, fontWeight: 'bold', color: '#111827' },
+  field: { marginBottom: 20 },
+  fieldLabel: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 10 },
   booleanButtons: { flexDirection: 'row', gap: 12 },
-  booleanButton: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#D1D5DB',
-    alignItems: 'center',
-  },
-  booleanButtonActive: { backgroundColor: '#4F46E5', borderColor: '#4F46E5' },
-  booleanButtonText: { fontSize: 14, fontWeight: '600', color: '#374151' },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
-  actions: { padding: 16, gap: 12 },
-  saveButton: { backgroundColor: '#10B981', padding: 16, borderRadius: 12, alignItems: 'center' },
-  buttonDisabled: { opacity: 0.7 },
-  saveButtonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
-  cancelButton: { backgroundColor: '#6B7280', padding: 16, borderRadius: 12, alignItems: 'center' },
-  cancelButtonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
+  booleanButton: { flex: 1, height: 48, borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E7EB', justifyContent: 'center', alignItems: 'center' },
+  booleanButtonText: { fontSize: 15, fontWeight: 'bold', color: '#6B7280' },
+  textInput: { borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 12, padding: 15, fontSize: 15, color: '#1F2937', minHeight: 80, textAlignVertical: 'top' },
+  saveBtn: { borderRadius: 16, overflow: 'hidden', marginTop: 10 },
+  btnGradient: { height: 60, justifyContent: 'center', alignItems: 'center' },
+  saveBtnText: { color: 'white', fontSize: 16, fontWeight: 'bold', letterSpacing: 1 },
 })

@@ -120,6 +120,8 @@ class Institucion(models.Model):
     barrio = models.CharField(max_length=100, null=True, blank=True)
     comuna = models.CharField(max_length=50, null=True, blank=True)
     activo = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = "Institución"
@@ -155,8 +157,9 @@ class VisitaAuditoria(models.Model):
     observaciones = models.TextField(null=True, blank=True)
     
     # Campos para el formulario de relevamiento
-    formulario_completado = models.BooleanField(default=False)
     formulario_respuestas = models.JSONField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = "Visita de auditoría"

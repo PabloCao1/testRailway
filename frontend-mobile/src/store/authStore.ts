@@ -14,6 +14,7 @@ interface AuthState {
   accessToken: string | null
   refreshToken: string | null
   isAuthenticated: boolean
+  isHydrated: boolean
   login: (tokens: { access: string; refresh: string }, user: User) => Promise<void>
   logout: () => Promise<void>
   loadTokens: () => Promise<void>
@@ -24,6 +25,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   accessToken: null,
   refreshToken: null,
   isAuthenticated: false,
+  isHydrated: false,
 
   login: async (tokens, user) => {
     const storage = getStorage()
@@ -50,16 +52,34 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   loadTokens: async () => {
-    const storage = getStorage()
-    const accessToken = await storage.getItem('access_token')
-    const refreshToken = await storage.getItem('refresh_token')
+    try {
+      const storage = getStorage()
+      const accessToken = await storage.getItem('access_token')
+      const refreshToken = await storage.getItem('refresh_token')
 
-    if (accessToken && refreshToken) {
-      set({
-        accessToken,
-        refreshToken,
-        isAuthenticated: true,
-      })
+      if (accessToken && refreshToken) {
+        // We have tokens, app is authenticated
+        set({
+          accessToken,
+          refreshToken,
+          isAuthenticated: true,
+        })
+
+        try {
+          // Attempt to get fresh user data
+          const { authService } = await import('../services/authService')
+          const userData = await authService.getMe(accessToken)
+          set({ user: userData, isHydrated: true })
+        } catch (e) {
+          console.log('⚠️ Could not refresh user data on hydration, using tokens only')
+          set({ isHydrated: true })
+        }
+      } else {
+        set({ isHydrated: true, isAuthenticated: false })
+      }
+    } catch (error) {
+      console.error('Error loading tokens:', error)
+      set({ isHydrated: true, isAuthenticated: false })
     }
   },
 }))

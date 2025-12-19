@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native'
-import { auditoriaService } from '../services/auditoriaService'
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native'
+import { getDB } from '../database/db'
+import { Ionicons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 
 export const VisitaDetalleScreen = ({ route, navigation }: any) => {
   const { id } = route.params
   const [visita, setVisita] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     loadVisita()
@@ -12,100 +15,201 @@ export const VisitaDetalleScreen = ({ route, navigation }: any) => {
 
   const loadVisita = async () => {
     try {
-      const data = await auditoriaService.getVisita(id)
+      setLoading(true)
+      const db = getDB()
+
+      // Load visit with institution name
+      const data = await db.getFirstAsync<any>(`
+        SELECT v.*, i.nombre as institucion_nombre 
+        FROM visitas v 
+        LEFT JOIN instituciones i ON v.institucion_id = i.server_id 
+        WHERE v.id = ?
+      `, [id])
+
+      if (!data) {
+        Alert.alert('Error', 'Visita no encontrada localmente')
+        navigation.goBack()
+        return
+      }
+
+      // In a real local-first app, we'd also load local platos/ingredientes if they existed
+      // For now, we'll show what we have in the visitas table (formulario_respuestas)
       setVisita(data)
     } catch (error) {
-      Alert.alert('Error', 'No se pudo cargar la visita')
+      console.error('Error loading visita:', error)
+      Alert.alert('Error', 'Error al cargar la visita')
+    } finally {
+      setLoading(false)
     }
   }
 
-  if (!visita) return <View style={styles.container}><Text>Cargando...</Text></View>
+  const getTipoComidaIcon = (tipo: string) => {
+    const icons: Record<string, string> = {
+      desayuno: 'cafe', almuerzo: 'restaurant', merienda: 'ice-cream', cena: 'moon'
+    }
+    return icons[tipo?.toLowerCase()] || 'clipboard'
+  }
+
+  if (loading) return (
+    <View style={styles.loading}>
+      <ActivityIndicator size="large" color="#4F46E5" />
+    </View>
+  )
+
+  if (!visita) return null
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{visita.institucion_nombre}</Text>
-        <Text style={styles.subtitle}>{visita.fecha} - {visita.tipo_comida}</Text>
-        <TouchableOpacity 
-          style={styles.formularioButton}
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <LinearGradient colors={['#4F46E5', '#7C3AED']} style={styles.header}>
+        <View style={styles.headerTop}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color="white" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Detalle de Visita</Text>
+          <View style={{ width: 24 }} />
+        </View>
+
+        <View style={styles.headerContent}>
+          <View style={styles.iconBox}>
+            <Ionicons name={getTipoComidaIcon(visita.tipo_comida) as any} size={32} color="#4F46E5" />
+          </View>
+          <Text style={styles.institucionName}>{visita.institucion_nombre}</Text>
+          <Text style={styles.visitaMeta}>
+            {visita.tipo_comida?.toUpperCase()} • {new Date(visita.fecha).toLocaleDateString()}
+          </Text>
+        </View>
+      </LinearGradient>
+
+      <View style={styles.content}>
+        <TouchableOpacity
+          style={styles.mainAction}
           onPress={() => navigation.navigate('FormularioRelevamiento', { visitaId: id })}
         >
-          <Text style={styles.formularioButtonText}>📋 Completar Formulario</Text>
+          <LinearGradient
+            colors={['#10B981', '#059669']}
+            style={styles.actionGradient}
+          >
+            <Ionicons name="list" size={24} color="white" />
+            <Text style={styles.actionText}>Continuar Formulario</Text>
+          </LinearGradient>
         </TouchableOpacity>
-      </View>
 
-      {visita.platos?.map((plato: any) => (
-        <View key={plato.id} style={styles.platoCard}>
-          <Text style={styles.platoTitle}>{plato.nombre}</Text>
-          {plato.tipo_plato && <Text style={styles.text}>Tipo: {plato.tipo_plato}</Text>}
-          
-          {plato.ingredientes && plato.ingredientes.length > 0 && (
-            <View style={styles.ingredientes}>
-              <Text style={styles.sectionTitle}>Ingredientes:</Text>
-              {plato.ingredientes.map((ing: any) => (
-                <Text key={ing.id} style={styles.ingrediente}>
-                  • {ing.alimento_nombre} - {ing.cantidad}{ing.unidad}
-                </Text>
-              ))}
-            </View>
-          )}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Observaciones</Text>
+          <Text style={styles.obsText}>
+            {visita.observaciones || 'Sin observaciones registradas.'}
+          </Text>
+        </View>
 
-          <View style={styles.totales}>
-            <Text style={styles.sectionTitle}>Totales Nutricionales:</Text>
-            <View style={styles.nutrientRow}>
-              <Text style={styles.nutrientLabel}>Energía:</Text>
-              <Text style={styles.nutrientValue}>{plato.energia_kcal_total?.toFixed(1) || 0} kcal</Text>
+        <View style={styles.card}>
+          <View style={styles.infoRow}>
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>Completado</Text>
+              <Text style={[styles.infoValue, { color: visita.formulario_completado ? '#10B981' : '#F59E0B' }]}>
+                {visita.formulario_completado ? 'SÍ' : 'PENDIENTE'}
+              </Text>
             </View>
-            <View style={styles.nutrientRow}>
-              <Text style={styles.nutrientLabel}>Proteínas:</Text>
-              <Text style={styles.nutrientValue}>{plato.proteinas_g_total?.toFixed(1) || 0} g</Text>
-            </View>
-            <View style={styles.nutrientRow}>
-              <Text style={styles.nutrientLabel}>Grasas:</Text>
-              <Text style={styles.nutrientValue}>{plato.grasas_totales_g_total?.toFixed(1) || 0} g</Text>
-            </View>
-            <View style={styles.nutrientRow}>
-              <Text style={styles.nutrientLabel}>Carbohidratos:</Text>
-              <Text style={styles.nutrientValue}>{plato.carbohidratos_g_total?.toFixed(1) || 0} g</Text>
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>Estado Sinc</Text>
+              <Text style={[styles.infoValue, { color: visita.synced ? '#3B82F6' : '#EF4444' }]}>
+                {visita.synced ? 'Sincronizado' : 'Local'}
+              </Text>
             </View>
           </View>
         </View>
-      ))}
+
+        <View style={styles.infoBox}>
+          <Ionicons name="information-circle" size={20} color="#3B82F6" />
+          <Text style={styles.infoBoxText}>
+            Toda la información editada en el formulario se guardará automáticamente en este dispositivo.
+          </Text>
+        </View>
+      </View>
     </ScrollView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  header: { backgroundColor: 'white', padding: 16, marginBottom: 16 },
-  title: { fontSize: 20, fontWeight: 'bold', marginBottom: 4 },
-  subtitle: { fontSize: 14, color: '#666' },
-  platoCard: {
+  container: { flex: 1, backgroundColor: '#F9FAFB' },
+  loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  header: {
+    paddingTop: 48,
+    paddingBottom: 32,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  headerTitle: { color: 'white', fontSize: 18, fontWeight: 'bold' },
+  headerContent: { alignItems: 'center', marginTop: 24 },
+  iconBox: {
+    width: 64,
+    height: 64,
     backgroundColor: 'white',
-    padding: 16,
-    marginHorizontal: 16,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 16,
-    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  institucionName: { fontSize: 22, fontWeight: 'bold', color: 'white', textAlign: 'center', paddingHorizontal: 24 },
+  visitaMeta: { color: 'rgba(255,255,255,0.8)', fontSize: 13, marginTop: 4, letterSpacing: 0.5 },
+  content: { padding: 24 },
+  mainAction: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginBottom: 24,
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  actionGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+  },
+  actionText: { color: 'white', fontSize: 16, fontWeight: 'bold', marginLeft: 12 },
+  card: {
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 20,
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.03,
+    shadowRadius: 5,
+    elevation: 1,
   },
-  platoTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 8 },
-  text: { fontSize: 14, color: '#444', marginBottom: 4 },
-  ingredientes: { marginTop: 12, marginBottom: 12 },
-  sectionTitle: { fontSize: 16, fontWeight: '600', marginBottom: 8 },
-  ingrediente: { fontSize: 14, color: '#444', marginLeft: 8, marginBottom: 4 },
-  totales: {
-    marginTop: 12,
-    padding: 12,
-    backgroundColor: '#e3f2fd',
-    borderRadius: 8,
+  cardTitle: { fontSize: 15, fontWeight: 'bold', color: '#374151', marginBottom: 12 },
+  obsText: { fontSize: 14, color: '#6B7280', lineHeight: 20 },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  infoItem: { flex: 1 },
+  infoLabel: { fontSize: 12, color: '#9CA3AF', marginBottom: 4 },
+  infoValue: { fontSize: 14, fontWeight: 'bold' },
+  infoBox: {
+    marginTop: 8,
+    padding: 16,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  nutrientRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  nutrientLabel: { fontSize: 14, color: '#444' },
-  nutrientValue: { fontSize: 14, fontWeight: '600', color: '#1976d2' },
-  formularioButton: { backgroundColor: '#10B981', padding: 12, borderRadius: 8, marginTop: 12, alignItems: 'center' },
-  formularioButtonText: { color: 'white', fontSize: 14, fontWeight: 'bold' },
+  infoBoxText: {
+    marginLeft: 12,
+    fontSize: 13,
+    color: '#1E40AF',
+    flex: 1,
+    lineHeight: 18,
+  },
 })

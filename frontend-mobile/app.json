@@ -1,5 +1,9 @@
 {
   "expo": {
+    "plugins": [
+      "expo-sqlite",
+      "expo-secure-store"
+    ],
     "name": "Auditoría Mobile",
     "slug": "auditoria-mobile",
     "version": "1.0.0",
@@ -22,7 +26,8 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF"
-      }
+      },
+      "package": "com.pablocao.auditoriamobile"
     },
     "extra": {
       "eas": {
