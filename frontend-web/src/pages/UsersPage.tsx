@@ -24,7 +24,13 @@ interface UserForm {
 }
 
 const userService = {
-  getUsers: () => apiClient.get('/users/').then(res => res.data),
+  getUsers: () =>
+    apiClient.get('/users/').then(res => {
+      const data = res.data
+      if (Array.isArray(data)) return data
+      if (Array.isArray(data?.results)) return data.results
+      return []
+    }),
   createUser: (data: UserForm) => apiClient.post('/users/', data).then(res => res.data),
   updateUser: (id: number, data: Partial<UserForm>) => apiClient.put(`/users/${id}/`, data).then(res => res.data),
   deleteUser: (id: number) => apiClient.delete(`/users/${id}/`),
@@ -33,6 +39,7 @@ const userService = {
 export function UsersPage() {
   const [showForm, setShowForm] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [formData, setFormData] = useState<UserForm>({
     username: '',
     email: '',
@@ -43,6 +50,22 @@ export function UsersPage() {
 
   const queryClient = useQueryClient()
 
+  const formatError = (error: unknown) => {
+    if (error && typeof error === 'object' && 'response' in error) {
+      const response = (error as any).response
+      const data = response?.data
+      if (typeof data === 'string') return data
+      if (Array.isArray(data)) return data.join(', ')
+      if (data && typeof data === 'object') {
+        const firstKey = Object.keys(data)[0]
+        const value = data[firstKey]
+        if (Array.isArray(value)) return value.join(', ')
+        if (typeof value === 'string') return value
+      }
+    }
+    return 'No se pudo guardar el usuario. Intenta nuevamente.'
+  }
+
   const { data: users, isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: userService.getUsers,
@@ -52,7 +75,11 @@ export function UsersPage() {
     mutationFn: userService.createUser,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
+      setErrorMessage(null)
       resetForm()
+    },
+    onError: (error) => {
+      setErrorMessage(formatError(error))
     },
   })
 
@@ -61,7 +88,11 @@ export function UsersPage() {
       userService.updateUser(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
+      setErrorMessage(null)
       resetForm()
+    },
+    onError: (error) => {
+      setErrorMessage(formatError(error))
     },
   })
 
@@ -82,6 +113,7 @@ export function UsersPage() {
     })
     setShowForm(false)
     setEditingUser(null)
+    setErrorMessage(null)
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -127,6 +159,13 @@ export function UsersPage() {
           <h2 className="text-lg font-semibold mb-4">
             {editingUser ? 'Editar Usuario' : 'Crear Usuario'}
           </h2>
+          {errorMessage && (
+            <div className="mb-3 rounded-md bg-red-50 px-4 py-2 text-sm text-red-700">
+              {errorMessage.includes('exists')
+                ? 'Ya existe un usuario con esos datos.'
+                : errorMessage}
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
