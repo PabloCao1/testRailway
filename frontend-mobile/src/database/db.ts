@@ -93,6 +93,9 @@ export const initDB = async (): Promise<SQLite.SQLiteDatabase> => {
       await db.execAsync('ALTER TABLE instituciones ADD COLUMN barrio TEXT;')
     } catch (e) { /* already exists */ }
     try {
+      await db.execAsync('ALTER TABLE instituciones ADD COLUMN comuna TEXT;')
+    } catch (e) { /* already exists */ }
+    try {
       await db.execAsync('ALTER TABLE instituciones ADD COLUMN updated_at TEXT;')
     } catch (e) { /* already exists */ }
 

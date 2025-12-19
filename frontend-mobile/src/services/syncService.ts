@@ -123,8 +123,8 @@ export const syncService = {
             for (const i of remoteInsts) {
                 await db.runAsync(
                     `INSERT OR REPLACE INTO instituciones 
-           (server_id, nombre, tipo, direccion, barrio, comuna, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+           (server_id, nombre, tipo, direccion, barrio, comuna, updated_at, pending_sync)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
                     [i.id, i.nombre, i.tipo, i.direccion, i.barrio, i.comuna, i.updated_at]
                 )
             }
