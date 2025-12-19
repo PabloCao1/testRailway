@@ -24,7 +24,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   accessToken: null,
   refreshToken: null,
   isAuthenticated: false,
-  
+
   login: async (tokens, user) => {
     const storage = getStorage()
     await storage.setItem('access_token', tokens.access)
@@ -36,7 +36,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isAuthenticated: true,
     })
   },
-  
+
   logout: async () => {
     const storage = getStorage()
     await storage.removeItem('access_token')
@@ -48,12 +48,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isAuthenticated: false,
     })
   },
-  
+
   loadTokens: async () => {
     const storage = getStorage()
     const accessToken = await storage.getItem('access_token')
     const refreshToken = await storage.getItem('refresh_token')
-    
+
     if (accessToken && refreshToken) {
       set({
         accessToken,
@@ -62,4 +62,4 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       })
     }
   },
-})
+}))
