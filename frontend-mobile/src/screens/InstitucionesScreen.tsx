@@ -30,8 +30,8 @@ export const InstitucionesScreen = ({ navigation }: any) => {
       const db = getDB()
       for (const inst of data) {
         await db.runAsync(
-          `INSERT OR REPLACE INTO instituciones (server_id, nombre, tipo, direccion, barrio, comuna, synced)
-           VALUES (?, ?, ?, ?, ?, ?, 1)`,
+          `INSERT OR REPLACE INTO instituciones (server_id, nombre, tipo, direccion, barrio, comuna, pending_sync)
+           VALUES (?, ?, ?, ?, ?, ?, 0)`,
           [inst.id, inst.nombre, inst.tipo, inst.direccion, inst.barrio, inst.comuna]
         )
       }

@@ -32,7 +32,7 @@ export const initDB = async (): Promise<SQLite.SQLiteDatabase> => {
         comuna TEXT,
         created_at TEXT,
         updated_at TEXT,
-        synced INTEGER DEFAULT 0
+        pending_sync INTEGER DEFAULT 1
       );
 
       CREATE TABLE IF NOT EXISTS visitas (
@@ -86,6 +86,9 @@ export const initDB = async (): Promise<SQLite.SQLiteDatabase> => {
     } catch (e) { /* already exists */ }
 
     // Check instituciones
+    try {
+      await db.execAsync('ALTER TABLE instituciones ADD COLUMN pending_sync INTEGER DEFAULT 1;')
+    } catch (e) { /* already exists */ }
     try {
       await db.execAsync('ALTER TABLE instituciones ADD COLUMN barrio TEXT;')
     } catch (e) { /* already exists */ }

@@ -25,8 +25,8 @@ export const VisitasScreen = ({ navigation }: any) => {
       const db = getDB()
       for (const v of data) {
         await db.runAsync(
-          `INSERT OR REPLACE INTO visitas (id, server_id, institucion_id, fecha, tipo_comida, observaciones, formulario_completado, synced)
-           VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
+          `INSERT OR REPLACE INTO visitas (id, server_id, institucion_id, fecha, tipo_comida, observaciones, formulario_completado, pending_sync)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
           [v.id.toString(), v.id, v.institucion, v.fecha, v.tipo_comida, v.observaciones, v.formulario_completado ? 1 : 0]
         )
       }

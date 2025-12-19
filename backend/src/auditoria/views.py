@@ -26,6 +26,48 @@ class InstitucionViewSet(viewsets.ModelViewSet):
     filterset_fields = ['tipo', 'activo', 'comuna']
     search_fields = ['nombre', 'codigo', 'barrio']
 
+    @action(detail=False, methods=['post'], url_path='sync')
+    def sync(self, request):
+        """Sincronización masiva de instituciones (Offline-First)"""
+        data = request.data
+        if not isinstance(data, list):
+            return Response({"error": "Se esperaba una lista"}, status=status.HTTP_400_BAD_REQUEST)
+
+        results = []
+        with transaction.atomic():
+            for entry in data:
+                local_id = entry.get('local_id')
+                server_id = entry.get('id')
+                
+                # Ensure codigo exists (it's mandatory in model)
+                if not entry.get('codigo'):
+                    entry['codigo'] = entry.get('nombre', 'INST').upper()[:10] + "-" + str(local_id)[:8]
+
+                try:
+                    if server_id:
+                        instance = Institucion.objects.get(id=server_id)
+                        client_updated_at = entry.get('updated_at')
+                        if client_updated_at and client_updated_at > instance.updated_at.isoformat():
+                            serializer = InstitucionSerializer(instance, data=entry, partial=True)
+                            if serializer.is_valid():
+                                instance = serializer.save()
+                                results.append({"local_id": local_id, "id": instance.id, "status": "updated"})
+                            else:
+                                results.append({"local_id": local_id, "error": serializer.errors, "status": "error"})
+                        else:
+                            results.append({"local_id": local_id, "id": instance.id, "status": "skipped_older"})
+                    else:
+                        serializer = InstitucionSerializer(data=entry)
+                        if serializer.is_valid():
+                            instance = serializer.save()
+                            results.append({"local_id": local_id, "id": instance.id, "status": "created"})
+                        else:
+                            results.append({"local_id": local_id, "error": serializer.errors, "status": "error"})
+                except Exception as e:
+                    results.append({"local_id": local_id, "error": str(e), "status": "error"})
+        
+        return Response(results)
+
 
 class VisitaAuditoriaViewSet(viewsets.ModelViewSet):
     queryset = VisitaAuditoria.objects.select_related('institucion').all()

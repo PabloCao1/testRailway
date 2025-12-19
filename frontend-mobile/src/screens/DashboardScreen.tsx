@@ -17,7 +17,7 @@ export const DashboardScreen = () => {
         db.getFirstAsync<any>('SELECT COUNT(*) as count FROM instituciones'),
         db.getFirstAsync<any>('SELECT COUNT(*) as count FROM visitas'),
         db.getFirstAsync<any>('SELECT COUNT(*) as count FROM visitas WHERE pending_sync = 1'),
-        db.getFirstAsync<any>('SELECT COUNT(*) as count FROM instituciones WHERE synced = 0')
+        db.getFirstAsync<any>('SELECT COUNT(*) as count FROM instituciones WHERE pending_sync = 1')
       ])
 
       setStats({

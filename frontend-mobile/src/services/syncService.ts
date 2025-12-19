@@ -50,19 +50,41 @@ export const syncService = {
     async pushUnsyncedData(): Promise<void> {
         const db = getDB()
         try {
-            // Obtener formularios de visitas pendientes
-            const pendingVisitas = await db.getAllAsync<any>(
-                'SELECT * FROM visitas WHERE pending_sync = 1'
-            )
+            // 1. Sincronizar Instituciones Nuevas/Editadas
+            const pendingInst = await db.getAllAsync<any>('SELECT * FROM instituciones WHERE pending_sync = 1')
+            if (pendingInst.length > 0) {
+                console.log(`📤 [Push] Sincronizando ${pendingInst.length} instituciones...`)
+                const instPayload = pendingInst.map(i => ({
+                    local_id: i.id,
+                    id: i.server_id,
+                    nombre: i.nombre,
+                    tipo: i.tipo,
+                    direccion: i.direccion,
+                    barrio: i.barrio,
+                    comuna: i.comuna,
+                    updated_at: i.updated_at
+                }))
+                const instRes = await apiClient.post('auditoria/instituciones/sync/', instPayload)
+                if (instRes.status === 200) {
+                    for (const res of instRes.data) {
+                        if (res.status !== 'error') {
+                            await db.runAsync(
+                                'UPDATE instituciones SET pending_sync = 0, server_id = ? WHERE id = ?',
+                                [res.id, res.local_id]
+                            )
+                        }
+                    }
+                }
+            }
 
+            // 2. Sincronizar Visitas/Formularios
+            const pendingVisitas = await db.getAllAsync<any>('SELECT * FROM visitas WHERE pending_sync = 1')
             if (pendingVisitas.length === 0) return
 
             console.log(`📤 [Push] Sincronizando ${pendingVisitas.length} visitas...`)
-
-            // Mapear al formato que espera el backend
             const payload = pendingVisitas.map(v => ({
                 local_id: v.id,
-                id: v.server_id, // Si ya tiene ID lo manda para update
+                id: v.server_id,
                 institucion: v.institucion_id,
                 fecha: v.fecha,
                 tipo_comida: v.tipo_comida,
@@ -73,18 +95,13 @@ export const syncService = {
             }))
 
             const response = await apiClient.post('auditoria/visitas/sync/', payload)
-
             if (response.status === 200) {
-                const syncResults = response.data
-
-                for (const result of syncResults) {
+                for (const result of response.data) {
                     if (result.status !== 'error') {
                         await db.runAsync(
                             'UPDATE visitas SET pending_sync = 0, server_id = ?, synced_at = ? WHERE id = ?',
                             [result.id, new Date().toISOString(), result.local_id]
                         )
-                    } else {
-                        console.error(`❌ [Push] Error en registro ${result.local_id}:`, result.error)
                     }
                 }
             }

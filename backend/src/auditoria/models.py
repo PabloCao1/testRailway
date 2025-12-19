@@ -157,6 +157,7 @@ class VisitaAuditoria(models.Model):
     observaciones = models.TextField(null=True, blank=True)
     
     # Campos para el formulario de relevamiento
+    formulario_completado = models.BooleanField(default=False)
     formulario_respuestas = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

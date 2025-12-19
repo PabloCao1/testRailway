@@ -25,8 +25,8 @@ export const NuevaInstitucionScreen = ({ navigation }: any) => {
             const now = new Date().toISOString()
 
             await db.runAsync(
-                `INSERT INTO instituciones (nombre, tipo, direccion, barrio, comuna, created_at, updated_at, synced) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
+                `INSERT INTO instituciones (nombre, tipo, direccion, barrio, comuna, created_at, updated_at, pending_sync) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
                 [nombre, tipo, direccion, barrio, comuna, now, now]
             )
 
