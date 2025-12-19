@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeftIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
+import { apiUrl } from '../config'
 
 export const FormularioRelevamientoPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -193,7 +194,7 @@ export const FormularioRelevamientoPage: React.FC = () => {
   React.useEffect(() => {
     const cargarPlatos = async () => {
       try {
-        const response = await fetch(`http://localhost:8000/api/auditoria/visitas/${id}/`)
+        const response = await fetch(apiUrl(`api/auditoria/visitas/${id}/`))
         const data = await response.json()
         if (data.platos) {
           setPlatos(data.platos)
